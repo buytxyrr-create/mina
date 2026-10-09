@@ -1,0 +1,586 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مصافحة TLS | اتصال آمن</title>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap');
+
+        :root {
+            --green: #00ff9c;
+            --blue: #00c8ff;
+            --bg: #05080d;
+            --panel: #101720;
+            --text: #f2f7ff;
+            --muted: #8996a8;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 24px;
+            background:
+                radial-gradient(ellipse at 15% 20%, #003b302d, transparent 40%),
+                radial-gradient(ellipse at 85% 80%, #003d592e, transparent 40%),
+                var(--bg);
+            color: var(--text);
+            font-family: 'Cairo', sans-serif;
+        }
+
+        .container {
+            width: min(950px, 100%);
+            padding: 35px;
+            border: 1px solid #1d3541;
+            border-radius: 24px;
+            background: linear-gradient(145deg, #101720f5, #080d14f5);
+            box-shadow:
+                0 0 35px #00ff9c0b,
+                0 0 70px #00c8ff0a,
+                inset 0 0 30px #ffffff03;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .header h1 {
+            font-size: clamp(25px, 4vw, 38px);
+            font-weight: 800;
+            background: linear-gradient(90deg, var(--green), var(--blue));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            filter: drop-shadow(0 0 15px #00ff9c30);
+        }
+
+        .header p {
+            margin-top: 8px;
+            color: var(--muted);
+            font-size: 14px;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 14px;
+            margin-top: 15px;
+            border: 1px solid #00ff9c35;
+            border-radius: 30px;
+            color: var(--green);
+            background: #00ff9c0a;
+            font-size: 12px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background: var(--green);
+            border-radius: 50%;
+            box-shadow: 0 0 12px var(--green);
+        }
+
+        .network {
+            display: grid;
+            grid-template-columns: minmax(110px, 1fr) minmax(100px, 2fr) minmax(110px, 1fr);
+            align-items: center;
+            gap: 15px;
+            direction: ltr;
+        }
+
+        .device {
+            min-width: 0;
+            padding: 22px 10px;
+            text-align: center;
+            border: 1px solid #ffffff12;
+            border-radius: 18px;
+            background: #ffffff04;
+            transition: 0.3s;
+        }
+
+        .device.student {
+            border-color: #00ff9c45;
+            box-shadow: 0 0 25px #00ff9c0a;
+        }
+
+        .device.server {
+            border-color: #00c8ff45;
+            box-shadow: 0 0 25px #00c8ff0a;
+        }
+
+        .device img {
+            display: block;
+            width: 85px;
+            height: 85px;
+            object-fit: contain;
+            margin: 0 auto 14px;
+        }
+
+        .device h2 {
+            font-size: 16px;
+            font-weight: 700;
+        }
+
+        .student h2 {
+            color: var(--green);
+        }
+
+        .server h2 {
+            color: var(--blue);
+        }
+
+        .device p {
+            margin-top: 5px;
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        /* مسار الاتصال */
+        .connection {
+            position: relative;
+            height: 100px;
+            min-width: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .line {
+            position: absolute;
+            left: 0;
+            right: 0;
+            top: 50%;
+            height: 3px;
+            transform: translateY(-50%);
+            border-radius: 5px;
+            background: linear-gradient(
+                90deg,
+                var(--green),
+                #ffffff30,
+                var(--blue)
+            );
+            box-shadow: 0 0 12px #00c8ff45;
+        }
+
+        /* النبضات المتحركة */
+        .packet {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            z-index: 2;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            opacity: 0;
+            transform: translateY(-50%);
+        }
+
+        .packet.forward {
+            background: var(--green);
+            box-shadow: 0 0 10px var(--green), 0 0 25px var(--green);
+            animation: sendForward 2.4s ease-in-out infinite;
+        }
+
+        .packet.backward {
+            background: var(--blue);
+            box-shadow: 0 0 10px var(--blue), 0 0 25px var(--blue);
+            animation: sendBackward 2.4s ease-in-out infinite;
+            animation-delay: 1.2s;
+        }
+
+        @keyframes sendForward {
+            0% {
+                left: 0;
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            85% {
+                opacity: 1;
+            }
+            100% {
+                left: calc(100% - 12px);
+                opacity: 0;
+            }
+        }
+
+        @keyframes sendBackward {
+            0% {
+                left: calc(100% - 12px);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            85% {
+                opacity: 1;
+            }
+            100% {
+                left: 0;
+                opacity: 0;
+            }
+        }
+
+        .connection-label {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: max-content;
+            max-width: 100%;
+            color: var(--muted);
+            font-size: 10px;
+            text-align: center;
+        }
+
+        .connection-label span {
+            color: var(--green);
+        }
+
+        .steps {
+            margin-top: 35px;
+            padding: 22px;
+            border: 1px solid #ffffff10;
+            border-radius: 16px;
+            background: #050a10;
+        }
+
+        .steps h3 {
+            margin-bottom: 12px;
+            color: var(--blue);
+            font-size: 15px;
+        }
+
+        .step-text {
+            min-height: 30px;
+            color: #d5e1ee;
+            font-size: 13px;
+            line-height: 1.9;
+        }
+
+        .progress {
+            width: 100%;
+            height: 4px;
+            margin-top: 15px;
+            overflow: hidden;
+            border-radius: 10px;
+            background: #1d2935;
+        }
+
+        .progress-bar {
+            width: 0;
+            height: 100%;
+            border-radius: inherit;
+            background: linear-gradient(90deg, var(--green), var(--blue));
+            box-shadow: 0 0 12px var(--blue);
+            transition: width 0.5s ease;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 25px;
+        }
+
+        button {
+            padding: 11px 22px;
+            border-radius: 10px;
+            border: 1px solid #00ff9c55;
+            background: #00ff9c0c;
+            color: var(--green);
+            font-family: inherit;
+            font-size: 13px;
+            cursor: pointer;
+            transition: 0.25s;
+        }
+
+        button:hover {
+            background: #00ff9c18;
+            box-shadow: 0 0 20px #00ff9c20;
+            transform: translateY(-2px);
+        }
+
+        button.secondary {
+            border-color: #00c8ff55;
+            background: #00c8ff0b;
+            color: var(--blue);
+        }
+
+        .footer {
+            margin-top: 22px;
+            color: #68788a;
+            font-size: 11px;
+            text-align: center;
+        }
+
+        @media (max-width: 520px) {
+            body {
+                padding: 12px;
+            }
+
+            .container {
+                padding: 22px 14px;
+            }
+
+            .network {
+                grid-template-columns: minmax(80px, 1fr) minmax(65px, 1fr) minmax(80px, 1fr);
+                gap: 7px;
+            }
+
+            .device {
+                padding: 16px 5px;
+            }
+
+            .device img {
+                width: 58px;
+                height: 58px;
+            }
+
+            .device h2 {
+                font-size: 13px;
+            }
+
+            .device p {
+                font-size: 9px;
+            }
+
+            .connection-label {
+                font-size: 9px;
+            }
+
+            .steps {
+                padding: 16px;
+            }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+            .packet {
+                animation: none !important;
+                opacity: 0;
+            }
+
+            * {
+                scroll-behavior: auto !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <main class="container">
+
+        <header class="header">
+            <h1>مصافحة TLS</h1>
+            <p>محاكاة مرئية لإنشاء اتصال آمن بين العميل والخادم</p>
+            <p>Mina Bassada</p>
+
+            <div class="badge">
+                <span class="status-dot"></span>
+                <span id="status">جاري بدء الاتصال...</span>
+            </div>
+        </header>
+
+        <section class="network">
+
+            <!-- الطالب / العميل -->
+            <div class="device student">
+                <img src="student.png" alt="العميل">
+                <h2>العميل</h2>
+                <p>Client</p>
+            </div>
+
+            <!-- خط الاتصال -->
+            <div class="connection">
+                <div class="connection-label">
+                    <span id="direction">Client → Server</span>
+                </div>
+
+                <div class="line"></div>
+                <span class="packet forward"></span>
+                <span class="packet backward"></span>
+            </div>
+
+            <!-- الخادم -->
+            <div class="device server">
+                <img src="server.png" alt="الخادم">
+                <h2>السيرفر</h2>
+                <p>Server</p>
+            </div>
+
+        </section>
+
+        <!-- معلومات مراحل المصافحة -->
+        <section class="steps">
+            <h3 id="step-title">الخطوة 1: Client Hello</h3>
+
+            <p class="step-text" id="step-description">
+                يرسل العميل رسالة Hello إلى الخادم لبدء التفاوض على الاتصال الآمن.
+            </p>
+
+            <div class="progress">
+                <div class="progress-bar" id="progress-bar"></div>
+            </div>
+        </section>
+
+        <div class="controls">
+            <button id="toggle-btn">إيقاف الحركة</button>
+            <button class="secondary" id="next-btn">الخطوة التالية ←</button>
+            <button class="secondary" id="reset-btn">إعادة التشغيل ↻</button>
+        </div>
+
+        <footer class="footer">
+            <a href="https://www.facebook.com/profile.php?id=100052299289229&locale=ar_AR" style="color: #00c8ff; background-color: #00ff9d34; border-radius: 3px; padding: 10px; text-decoration: none;">Mina Bassada</a>
+        </footer>
+
+    </main>
+
+    <script>
+        const statusText = document.getElementById("status");
+        const directionText = document.getElementById("direction");
+        const stepTitle = document.getElementById("step-title");
+        const stepDescription = document.getElementById("step-description");
+        const progressBar = document.getElementById("progress-bar");
+
+        const toggleBtn = document.getElementById("toggle-btn");
+        const nextBtn = document.getElementById("next-btn");
+        const resetBtn = document.getElementById("reset-btn");
+
+        const packets = document.querySelectorAll(".packet");
+
+        const steps = [
+            {
+                title: "الخطوة 1: Client Hello",
+                description:
+                    "يرسل العميل إصدارات TLS المدعومة وخيارات التشفير وقيمًا لازمة لبدء التفاوض.",
+                direction: "Client → Server",
+                status: "العميل يرسل طلب الاتصال",
+                progress: 20
+            },
+            {
+                title: "الخطوة 2: Server Hello",
+                description:
+                    "يرد الخادم باختيارات الاتصال، ومنها إصدار TLS وخوارزمية التشفير المتفق عليها.",
+                direction: "Server → Client",
+                status: "الخادم يرد على العميل",
+                progress: 40
+            },
+            {
+                title: "الخطوة 3: التحقق من الهوية",
+                description:
+                    "يرسل الخادم شهادة هويته الرقمية عادةً، ويتحقق العميل من صلاحيتها وفق إعدادات الثقة.",
+                direction: "Server → Client",
+                status: "التحقق من شهادة الخادم",
+                progress: 60
+            },
+            {
+                title: "الخطوة 4: إنشاء مفاتيح الجلسة",
+                description:
+                    "تُشتق مفاتيح الاتصال الآمن من مواد التبادل التشفيري. في TLS 1.3 تتم هذه العملية دون إرسال مفتاح الجلسة السري نفسه عبر الشبكة.",
+                direction: "Client ↔ Server",
+                status: "إعداد مفاتيح التشفير",
+                progress: 80
+            },
+            {
+                title: "الخطوة 5: اتصال آمن",
+                description:
+                    "بعد اكتمال المصافحة والتحقق المطلوب، يبدأ الطرفان تبادل بيانات التطبيق المحمية بالتشفير.",
+                direction: "Client ↔ Server",
+                status: "الاتصال الآمن جاهز",
+                progress: 100
+            }
+        ];
+
+        let currentStep = 0;
+        let isRunning = true;
+        let timer = null;
+
+        function showStep(index) {
+            currentStep = index;
+
+            const step = steps[currentStep];
+
+            stepTitle.textContent = step.title;
+            stepDescription.textContent = step.description;
+            directionText.textContent = step.direction;
+            statusText.textContent = step.status;
+            progressBar.style.width = step.progress + "%";
+        }
+
+        function nextStep() {
+            const nextIndex = (currentStep + 1) % steps.length;
+            showStep(nextIndex);
+        }
+
+        function startSimulation() {
+            clearInterval(timer);
+
+            timer = setInterval(() => {
+                if (isRunning) {
+                    nextStep();
+                }
+            }, 4000);
+        }
+
+        function toggleSimulation() {
+            isRunning = !isRunning;
+
+            packets.forEach(packet => {
+                packet.style.animationPlayState =
+                    isRunning ? "running" : "paused";
+            });
+
+            toggleBtn.textContent = isRunning
+                ? "إيقاف الحركة"
+                : "استكمال الحركة";
+
+            if (isRunning) {
+                statusText.textContent = steps[currentStep].status;
+            } else {
+                statusText.textContent = "المحاكاة متوقفة مؤقتًا";
+            }
+        }
+
+        function resetSimulation() {
+            isRunning = true;
+
+            packets.forEach(packet => {
+                packet.style.animationPlayState = "running";
+            });
+
+            toggleBtn.textContent = "إيقاف الحركة";
+
+            showStep(0);
+            startSimulation();
+        }
+
+        toggleBtn.addEventListener("click", toggleSimulation);
+
+        nextBtn.addEventListener("click", () => {
+            nextStep();
+        });
+
+        resetBtn.addEventListener("click", resetSimulation);
+
+        // بدء المحاكاة
+        showStep(0);
+        startSimulation();
+    </script>
+
+</body>
+</html>
